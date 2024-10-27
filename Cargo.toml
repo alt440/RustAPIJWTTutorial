@@ -1,0 +1,17 @@
+[package]
+name = "RustAPIJWTTutorial"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# those three dependencies are related to axum
+axum = "0.6"
+tower = "0.4"
+tokio = { version = "1", features = ["full"] }
+
+serde = { version = "1.0", features = ["derive"] } # used for communicating with DB
+serde_json = "1.0" # to convert Rust data structures to JSON and vice-versa
+jsonwebtoken = "8" # used for managing your JWT tokens
+bcrypt = "0.15" # to hash
+dotenv = "0.15" # allows to manage your environment variables
+sqlx = { version = "0.5", features = ["sqlite", "runtime-async-std"] } # to communicate with DB sqlite
