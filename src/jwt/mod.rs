@@ -10,8 +10,8 @@ use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey,
 //check: https://doc.rust-lang.org/rust-by-example/mod/visibility.html
 //Essentially, use pub(crate) for availability in crate, or pub(in crate::my_mod) for availability only in a specific mod
 mod jwt_struct;
-//Makes db functions public
-pub mod db;
+//If there was a sub-module that we wanted to make public we would do:
+//pub mod db;
 
 pub fn create_jwt(username: &str, roles: Vec<String>, secret: &str) -> String {
     let claims = jwt_struct::Claims {

@@ -13,7 +13,8 @@ use dotenv::dotenv;
 use std::env;
 use serde::Serialize;
 
-mod db_interactions;
+mod db;
+mod jwt;
 
 //to send the pool of connections through the different endpoints with state.clone()
 #[derive(Clone)]
@@ -34,12 +35,12 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok(); //loads the environment variables (JWT_SECRET) from the .env file
 
     // creates a pool of connections 
-    let pool = Arc::new(Mutex::new(db_interactions::db::create_pool().await));
+    let pool = Arc::new(Mutex::new(db::create_pool().await));
 
     //because of the parenthesis scope, I borrow the pool variable, but then I return it
     {
         let guard = pool.lock().await;
-        db_interactions::db::init_db(&guard).await;
+        db::init_db(&guard).await;
     }
     
     //to share the pool of connections
@@ -100,7 +101,7 @@ async fn login(Extension(state): Extension<AppState>, Json(credentials): Json<Va
     let mut user_role = "";
 
     // calls get user, and this returns all users with username and password
-    match db_interactions::db::get_user(&arc_pool, &username_val, &password_val).await {
+    match db::get_user(&arc_pool, &username_val, &password_val).await {
         Ok(users) => {
             let user_ref = &users;
             if user_ref.is_empty() == true {
@@ -125,7 +126,7 @@ async fn login(Extension(state): Extension<AppState>, Json(credentials): Json<Va
     if is_valid_user {
         let secret = get_jwt_secret();
         //creates JWT token with username and role admin with secret
-        let token = db_interactions::create_jwt(&username_val, vec![user_role.to_string()], &secret);
+        let token = jwt::create_jwt(&username_val, vec![user_role.to_string()], &secret);
 
         // you can return a json response using a random struct
         let response = JsonResponseToken::Success {
@@ -169,7 +170,7 @@ async fn register(Extension(state): Extension<AppState>, Json(credentials): Json
     }
     
     let pool = state.pool.lock().await;
-    match db_interactions::db::add_user(&pool, &username_val, &password_val, &role_val).await {
+    match db::add_user(&pool, &username_val, &password_val, &role_val).await {
         Ok(_) => {
             let response = JsonResponseToken::Error {
                 message: "User added"
@@ -197,15 +198,12 @@ async fn admin(headers: HeaderMap) -> impl IntoResponse {
         let secret = get_jwt_secret();
 
         // verifies that validate_jwt does not return any errors (The Ok keyword validates a successful return), and assigns the non-erroneous return to data
-        if let Ok(data) = db_interactions::validate_jwt(token, &secret) {
-            if "Admin".eq(&db_interactions::db::models::Roles::Admin.as_str()) {
-                println!("YOUPI!");
-            }
+        if let Ok(data) = jwt::validate_jwt(token, &secret) {
             // if role contains admin, access granted. Currently holds only 1 index
             // Don't know why I can't simply do a for role in &data.claims.roles... the index appears inexistant
             if let Some(first_role) = &data.claims.roles.get(0) {
                 // for some reason, first_role extracted with " in prefix and suffix of string
-                if (*first_role).contains(&db_interactions::db::models::Roles::Admin.as_str()) {
+                if (*first_role).contains(&db::models::Roles::Admin.as_str()) {
                     return (StatusCode::OK, "Admin access granted!").into_response();
                 }
             }
@@ -219,7 +217,7 @@ async fn user(headers: HeaderMap) -> impl IntoResponse {
 
     if let Some(token) = token {
         let secret = get_jwt_secret();
-        if let Ok(_) = db_interactions::validate_jwt(token, &secret) {
+        if let Ok(_) = jwt::validate_jwt(token, &secret) {
             return (StatusCode::OK, "User access granted!").into_response();
         }
     }
