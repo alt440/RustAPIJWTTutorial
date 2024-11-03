@@ -33,6 +33,13 @@ CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, passwor
 
 To exit the prompt, type '.' (the period character alone)
 
+## Debugging Rust
+To debug Rust, I added the extension CodeLLDB.
+
+Then, I went to the 'Run and Debug' section of VSCode. I selected the link to create a launch.json file. Then, a list of types of launch.json files are suggested. Choose LLDB. VSCode will realize you have a Rust project, and suggest you to configure it for you. Accept to have VSCode configure the debug configuration for you. That's it!
+
+However, note that you can't just relaunch the server using the relaunch icon (green arrow going back on itself). You need to shut down (red square) your server, and restart manually every time you make a change
+
 ## Modules
 You can have a folder name for a module (with its own mod.rs file, which represents the code for that module). Any files in the same folder with a different name will be considered as submodules.
 

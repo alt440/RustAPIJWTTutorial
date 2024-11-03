@@ -5,8 +5,7 @@ use axum::{
     response::{Json as JsonResponse, IntoResponse},
     http::{StatusCode, HeaderMap},
 };
-use db_interactions::db::models::User;
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -49,8 +48,8 @@ async fn main() -> std::io::Result<()> {
     let app = Router::new()
         .route("/login", post(login).layer(Extension(state.clone())))
         .route("/register", post(register).layer(Extension(state.clone())))
-        .route("/admin", get(admin).layer(Extension(state.clone())))
-        .route("/user", get(user).layer(Extension(state.clone())));
+        .route("/admin", get(admin))
+        .route("/user", get(user));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await.unwrap();
     axum::serve(listener, app.into_make_service())
@@ -118,7 +117,9 @@ async fn login(Extension(state): Extension<AppState>, Json(credentials): Json<Va
             }
             println!("It worked")
         },
-        Err(e) => println!("Error")
+        Err(e) => {
+            eprintln!("Error while verifying user {}", e)
+        }
     }
 
     if is_valid_user {
@@ -185,7 +186,7 @@ async fn register(Extension(state): Extension<AppState>, Json(credentials): Json
     }
 }
 
-async fn admin(Extension(state): Extension<AppState>, headers: HeaderMap) -> impl IntoResponse {
+async fn admin(headers: HeaderMap) -> impl IntoResponse {
     // Find the header value that contains our JWT token, and remove the start "Bearer "
     let token = get_bearer_token(&headers);
 
@@ -197,16 +198,23 @@ async fn admin(Extension(state): Extension<AppState>, headers: HeaderMap) -> imp
 
         // verifies that validate_jwt does not return any errors (The Ok keyword validates a successful return), and assigns the non-erroneous return to data
         if let Ok(data) = db_interactions::validate_jwt(token, &secret) {
-            // if role contains admin, access granted
-            if data.claims.roles.contains(&"ADMIN".to_string()) {
-                return (StatusCode::OK, "Admin access granted!").into_response();
+            if "Admin".eq(&db_interactions::db::models::Roles::Admin.as_str()) {
+                println!("YOUPI!");
+            }
+            // if role contains admin, access granted. Currently holds only 1 index
+            // Don't know why I can't simply do a for role in &data.claims.roles... the index appears inexistant
+            if let Some(first_role) = &data.claims.roles.get(0) {
+                // for some reason, first_role extracted with " in prefix and suffix of string
+                if (*first_role).contains(&db_interactions::db::models::Roles::Admin.as_str()) {
+                    return (StatusCode::OK, "Admin access granted!").into_response();
+                }
             }
         }
     }
     (StatusCode::FORBIDDEN, "Forbidden").into_response()
 }
 
-async fn user(Extension(state): Extension<AppState>, headers: HeaderMap) -> impl IntoResponse {
+async fn user(headers: HeaderMap) -> impl IntoResponse {
     let token = get_bearer_token(&headers);
 
     if let Some(token) = token {
