@@ -80,6 +80,7 @@ async fn login(Extension(state): Extension<utils::AppState>, Json(credentials): 
         return (StatusCode::BAD_REQUEST, JsonResponse(response))
     }
 
+    // instead of using the actual password here, you should hash it using bcrypt. You don't want the plain text password stored in a session
     utils::login::get_user_and_response(&state, &username_val, &password_val).await
 }
 
@@ -112,6 +113,7 @@ async fn register(Extension(state): Extension<utils::AppState>, Json(credentials
     }
     
     // without await, getting 'expected X, got future' error
+    // You should hash your password before adding it to the DB. In your login, you'll simply need to compare it
     utils::register::call_add_user(&state, &username_val, &password_val, &role_val).await
 }
 
